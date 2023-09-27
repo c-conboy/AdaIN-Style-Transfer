@@ -7,6 +7,7 @@
 
 import torch.nn as nn
 
+
 class encoder_decoder:
     encoder = nn.Sequential(
         nn.Conv2d(3, 3, (1, 1)),
@@ -95,7 +96,6 @@ class AdaIN_net(nn.Module):
             # self.decoder = _decoder
             self.decoder = encoder_decoder.decoder
             self.init_decoder_weights(mean=0.0, std=0.01)
-
         self.mse_loss = nn.MSELoss()
 
     def init_decoder_weights(self, mean, std):
@@ -151,10 +151,26 @@ class AdaIN_net(nn.Module):
             #   calculate Eq. (12) and Eq. (13), and return L_c and L_s from Eq. (11)
             #
             #   your code here ...
+            style_feats = self.encode(style)
+            content_feat = self.encode(content)[3]
+            t = adain(content_feat, style_feats[-1])
+            t = alpha * t + (1 - alpha) * content_feat
+
+            g_t = self.decoder(t)
+            g_t_feats = self.encode(g_t)[3]
+
+            loss_c = self.content_loss(g_t_feats[-1], t)
+            loss_s = self.style_loss(g_t_feats[0], style_feats[0])
+            for i in range(1, 4):
+                loss_s += self.style_loss(g_t_feats[i], style_feats[i])
 
             return loss_c, loss_s
         else:  # inference
             #
             #   your code here ...
-
-            return self.decode(feat)
+            #dont go through final encoder
+            style_feats = self.encode(style)
+            content_feat = self.encode(content)[3]
+            t = adain(content_feat, style_feats[-1])
+            t = alpha * t + (1 - alpha) * content_feat            
+            return self.decode(t)
