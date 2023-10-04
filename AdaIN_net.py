@@ -8,6 +8,27 @@
 import torch.nn as nn
 
 
+def calc_mean_std(feat, eps=1e-5):
+    # eps is a small value added to the variance to avoid divide-by-zero.
+    size = feat.size()
+    assert (len(size) == 4)
+    N, C = size[:2]
+    feat_var = feat.view(N, C, -1).var(dim=2) + eps
+    feat_std = feat_var.sqrt().view(N, C, 1, 1)
+    feat_mean = feat.view(N, C, -1).mean(dim=2).view(N, C, 1, 1)
+    return feat_mean, feat_std
+
+
+def adaptive_instance_normalization(content_feat, style_feat):
+    assert (content_feat.size()[:2] == style_feat.size()[:2])
+    size = content_feat.size()
+    style_mean, style_std = calc_mean_std(style_feat)
+    content_mean, content_std = calc_mean_std(content_feat)
+
+    normalized_feat = (content_feat - content_mean.expand(
+        size)) / content_std.expand(size)
+    return normalized_feat * style_std.expand(size) + style_mean.expand(size)
+
 class encoder_decoder:
     encoder = nn.Sequential(
         nn.Conv2d(3, 3, (1, 1)),
@@ -153,11 +174,11 @@ class AdaIN_net(nn.Module):
             #   your code here ...
             style_feats = self.encode(style)
             content_feat = self.encode(content)[3]
-            t = adain(content_feat, style_feats[-1])
+            t = adaptive_instance_normalization(content_feat, style_feats[-1])
             t = alpha * t + (1 - alpha) * content_feat
 
             g_t = self.decoder(t)
-            g_t_feats = self.encode(g_t)[3]
+            g_t_feats = self.encode(g_t)
 
             loss_c = self.content_loss(g_t_feats[-1], t)
             loss_s = self.style_loss(g_t_feats[0], style_feats[0])
@@ -171,6 +192,6 @@ class AdaIN_net(nn.Module):
             #dont go through final encoder
             style_feats = self.encode(style)
             content_feat = self.encode(content)[3]
-            t = adain(content_feat, style_feats[-1])
+            t = adaptive_instance_normalization(content_feat, style_feats[-1])
             t = alpha * t + (1 - alpha) * content_feat            
             return self.decode(t)
