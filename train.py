@@ -127,35 +127,43 @@ style_tf = train_transform()
 content_dataset = FlatFolderDataset(args.content_dir, content_tf)
 style_dataset = FlatFolderDataset(args.style_dir, style_tf)
 
-content_iter = iter(data.DataLoader(
+content_iter = data.DataLoader(
     content_dataset, batch_size=args.b,
-    sampler=InfiniteSamplerWrapper(content_dataset)))
-    #shuffle=True))
-    #num_workers=args.n_threads))
-style_iter = iter(data.DataLoader(
+    shuffle=True)
+style_iter = data.DataLoader(
     style_dataset, batch_size=args.b,
-    sampler=InfiniteSamplerWrapper(content_dataset)))
-    #shuffle=True))
-    #num_workers=args.n_threads))
+    shuffle=True)
 
 optimizer = torch.optim.Adam(network.decoder.parameters(), lr=args.lr)
 
 content_loss = torch.zeros(args.e)
 style_loss = torch.zeros(args.e)
 
+
+
+#for each epoch
 for i in tqdm(range(args.e)):
+    loss_train_c = 0.0
+    loss_train_s = 0.0
+    print("epoch:" + str(i))
+    #for each batch 
+    b = 0
+    for content_batch, style_batch in zip(content_iter, style_iter):
+        print("batch:" + str(b))
+        loss_c, loss_s = network.forward(content_batch, style_batch)
+        loss = loss_c + (args.gamma * loss_s)
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        loss_train_c += loss_c
+        loss_train_s += loss_s
+        b = b + 1
+
+
+    writer.add_scalar('loss_content', loss_train_c/args.b, i + 1)
+    writer.add_scalar('loss_style', loss_train_s/args.b, i + 1)
     adjust_learning_rate(optimizer, iteration_count=i)
-    content_images = next(content_iter).to(device)
-    style_images = next(style_iter).to(device)
-    loss_c, loss_s = network.forward(content_images, style_images)
-    loss = loss_c + (args.gamma * loss_s)
-
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-
-    writer.add_scalar('loss_content', loss_c.item(), i + 1)
-    writer.add_scalar('loss_style', loss_s.item(), i + 1)
 
     if (i + 1) == args.e:
         state_dict = network.decoder.state_dict()
@@ -163,8 +171,10 @@ for i in tqdm(range(args.e)):
             state_dict[key] = state_dict[key].to(torch.device('cpu'))
         torch.save(state_dict, 
                    './decoder_iter_{:d}.pth.tar'.format(i + 1))
-    content_loss[i] = (loss_c.detach().item() / len(content_images))
-    style_loss[i] = (loss_s.detach().item() / len(style_images))
+        
+    
+    content_loss[i] = (loss_train_c / args.b)
+    style_loss[i] = (loss_train_s / args.b)
 writer.close()
 
 
@@ -173,9 +183,9 @@ decoder_state_dict_file = os.path.join(os.getcwd(), args.s)
 
 torch.save(state_dict, decoder_state_dict_file)
 
-plt.plot(content_loss)
-plt.plot(style_loss)
-plt.plot([x + y for x, y in zip(content_loss, style_loss)])
+plt.plot(content_loss.detach().numpy())
+plt.plot(style_loss.detach().numpy())
+plt.plot([x + y for x, y in zip(content_loss.detach().numpy(), style_loss.detach().numpy())])
 
 
 plt.xlabel("Epoch")
