@@ -139,8 +139,6 @@ optimizer = torch.optim.Adam(network.decoder.parameters(), lr=args.lr)
 content_loss = torch.zeros(args.e)
 style_loss = torch.zeros(args.e)
 
-
-
 #for each epoch
 for i in tqdm(range(args.e)):
     loss_train_c = 0.0
@@ -150,6 +148,8 @@ for i in tqdm(range(args.e)):
     b = 0
     for content_batch, style_batch in zip(content_iter, style_iter):
         print("batch:" + str(b))
+        content_batch = content_batch.to(device)
+        style_batch = style_batch.to(device)
         loss_c, loss_s = network.forward(content_batch, style_batch)
         loss = loss_c + (args.gamma * loss_s)
 
