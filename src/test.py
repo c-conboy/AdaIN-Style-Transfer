@@ -61,9 +61,6 @@ if __name__ == '__main__':
 	with torch.no_grad():
 		out_tensor = model(input_tensor, style_tensor, alpha)
 
-	save_file = out_dir + opt.content_image[opt.content_image.rfind('/')+1: opt.content_image.find('.')] \
-							+"_style_"+ opt.style_image[opt.style_image.rfind('/')+1: opt.style_image.find('.')] \
-							+ "_alpha_" + str(alpha) \
-							+ output_format
+	save_file = out_dir + "output.png"
 	print('saving output file: ', save_file)
 	save_image(out_tensor, save_file)

@@ -98,7 +98,7 @@ parser.add_argument('-e', type=int, default=20)
 parser.add_argument('-b', type=int, default=8)
 parser.add_argument('-gamma', type=float, default=10.0)
 parser.add_argument('-n_threads', type=int, default=1)
-parser.add_argument('-cuda', type=str, default='N')
+parser.add_argument('-cuda', type=str, default='Y')
 parser.add_argument('-p', type=str, default='decoder.png')
 args = parser.parse_args()
 
@@ -170,7 +170,7 @@ for i in tqdm(range(args.e)):
         for key in state_dict.keys():
             state_dict[key] = state_dict[key].to(torch.device('cpu'))
         torch.save(state_dict, 
-                   './decoder_iter_{:d}.pth.tar'.format(i + 1))
+                   './decoder_iter.pth')
         
     
     content_loss[i] = (loss_train_c / args.b)
